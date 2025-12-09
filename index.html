@@ -3,17 +3,77 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0"> 
-    <title>모바일 테트리스</title>
-    <link rel="stylesheet" href="style.css">
+    <title>모바일 테트리스 게임</title>
+    
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #333;
+            font-family: Arial, sans-serif;
+        }
+
+        #game-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #222;
+            padding: 20px;
+            border-radius: 10px;
+        }
+
+        h1 {
+            color: white;
+            margin-bottom: 10px;
+        }
+
+        #tetris-canvas {
+            border: 5px solid #00ff00; /* 네온 그린 테두리 */
+            display: block;
+            background-color: #000;
+        }
+
+        #info-panel {
+            color: white;
+            margin: 15px 0;
+            text-align: center;
+        }
+
+        /* 모바일 조작 버튼 스타일 */
+        #mobile-controls {
+            display: flex;
+            justify-content: space-around;
+            width: 100%;
+            max-width: 300px;
+            margin-top: 20px;
+        }
+
+        #mobile-controls button {
+            padding: 15px 25px; /* 버튼 크기를 크게 설정 */
+            font-size: 24px;
+            cursor: pointer;
+            background-color: #555;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            touch-action: manipulation; /* 모바일에서 터치 지연 방지 */
+        }
+    </style>
 </head>
 <body>
     <div id="game-container">
-        <canvas id="tetris-canvas" width="300" height="600"></canvas>
-
+        <h1>Tetris</h1>
+        
+        <canvas id="tetris-canvas" width="200" height="400"></canvas> 
+        
         <div id="info-panel">
             <p>점수: <span id="score">0</span></p>
+            <button onclick="startGame()">게임 시작</button>
         </div>
-
+        
         <div id="mobile-controls">
             <button id="left-btn">◀️</button>
             <button id="right-btn">▶️</button>
@@ -21,6 +81,155 @@
             <button id="down-btn">⬇️</button>
         </div>
     </div>
-    <script src="script.js"></script>
+
+    <script>
+        // --- 1. 기본 설정 및 변수 ---
+        const canvas = document.getElementById('tetris-canvas');
+        const ctx = canvas.getContext('2d');
+        const scoreElement = document.getElementById('score');
+
+        const ROW = 20;
+        const COL = 10;
+        const SQ = 20; // 한 칸(블록)의 픽셀 크기 (20px)
+        const VACANT = "BLACK"; // 빈 공간의 색상
+
+        // 게임 보드 (20x10) 초기화
+        let board = [];
+        for (r = 0; r < ROW; r++) {
+            board[r] = [];
+            for (c = 0; c < COL; c++) {
+                board[r][c] = VACANT;
+            }
+        }
+
+        let score = 0;
+        let gameOver = false;
+        let currentPiece = null;
+        let interval;
+        
+        // **[주의] 테트로미노 모양 정의가 필요합니다.**
+        // 현재는 예시만 있으며, 모든 블록 모양(I, J, L, O, S, T, Z)을 정의해야 합니다.
+        const PIECES = [
+            // [Z, "red"], [S, "green"], [T, "purple"], [O, "yellow"], [L, "orange"], [I, "cyan"], [J, "blue"]
+            // 실제 코딩 시 여기에 모든 블록 정의를 채워야 합니다.
+            [[[1]], "gray"] // 임시 더미 블록
+        ];
+
+        // 클래스: Piece (현재 움직이는 블록)
+        class Piece {
+            constructor(tetromino, color) {
+                this.tetromino = tetromino;
+                this.color = color;
+                this.tetrominoN = 0; // 현재 모양의 인덱스 (회전 상태)
+                this.activeTetromino = this.tetromino[this.tetrominoN];
+                this.x = 3;
+                this.y = 0; // 시작 위치
+            }
+
+            draw() {
+                // 블록을 캔버스에 그리는 로직 (완성 필요)
+                ctx.fillStyle = this.color;
+                // 예시: 첫 칸만 그림
+                ctx.fillRect(this.x * SQ, this.y * SQ, SQ, SQ); 
+            }
+
+            unDraw() {
+                // 이전 블록을 지우는 로직 (완성 필요)
+                ctx.fillStyle = VACANT;
+                ctx.fillRect(this.x * SQ, this.y * SQ, SQ, SQ); 
+            }
+
+            collision(x, y, piece) {
+                // 충돌 감지 로직 (완성 필요)
+                return false; 
+            }
+
+            moveDown() {
+                if (!this.collision(0, 1, this.activeTetromino)) {
+                    this.unDraw();
+                    this.y++;
+                    this.draw();
+                } else {
+                    this.lock();
+                    currentPiece = randomPiece();
+                }
+            }
+
+            lock() {
+                // 블록을 보드에 고정하고 줄 제거 로직 호출 (완성 필요)
+                updateScore();
+            }
+
+            move(dx, dy) {
+                this.unDraw();
+                this.x += dx;
+                this.y += dy;
+                this.draw();
+            }
+        }
+
+        // --- 3. 함수 정의 ---
+
+        function randomPiece() {
+            let r = Math.floor(Math.random() * PIECES.length);
+            // PIECES[r][0]은 블록의 모양 배열, PIECES[r][1]은 색상
+            return new Piece(PIECES[r][0], PIECES[r][1]);
+        }
+
+        function startGame() {
+            if (interval) clearInterval(interval);
+            
+            // 보드 초기화 및 점수 초기화 로직 (완성 필요)
+            score = 0;
+            scoreElement.innerHTML = score;
+            gameOver = false;
+            
+            currentPiece = randomPiece();
+            
+            // 초기 보드 그리기 (빈칸)
+            ctx.fillStyle = VACANT;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // 드롭 루프 시작
+            interval = setInterval(drop, 1000); // 1초마다 블록 하강
+        }
+
+        function drop() {
+            if (gameOver) return;
+            if (currentPiece) {
+                currentPiece.moveDown();
+            }
+        }
+
+        function updateScore() {
+            score += 10;
+            scoreElement.innerHTML = score;
+        }
+
+        // --- 4. 모바일 조작 이벤트 연결 ---
+        document.getElementById('left-btn').addEventListener('click', () => {
+            if (currentPiece && !gameOver) {
+                currentPiece.move(-1, 0); // 왼쪽으로 이동
+            }
+        });
+
+        document.getElementById('right-btn').addEventListener('click', () => {
+            if (currentPiece && !gameOver) {
+                currentPiece.move(1, 0); // 오른쪽으로 이동
+            }
+        });
+
+        document.getElementById('rotate-btn').addEventListener('click', () => {
+            if (currentPiece && !gameOver) {
+                // currentPiece.rotate() 함수 호출 필요
+            }
+        });
+
+        document.getElementById('down-btn').addEventListener('click', () => {
+            if (currentPiece && !gameOver) {
+                currentPiece.moveDown(); // 한 칸 아래로
+            }
+        });
+    </script>
 </body>
 </html>
